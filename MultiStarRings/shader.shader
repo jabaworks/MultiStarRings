@@ -157,8 +157,6 @@ Shader "MultiStarRings/RingsMultiStar"
                         rayDir
                     );
 
-                // Occluder is behind the ring point along the ray to
-                // the light - can't be casting a shadow here.
                 if (b < 0.0)
                     return 1.0;
 
@@ -188,10 +186,6 @@ Shader "MultiStarRings/RingsMultiStar"
                         lightPos - shadowPos
                     );
 
-                // Penumbra grows with the star's angular size as seen
-                // from the occluder, projected out to the ring point -
-                // wider the farther the ring is from the occluder,
-                // tighter/harder close to it.
                 float penumbraWidth =
                     max(
                         shadowRadius +
@@ -208,13 +202,6 @@ Shader "MultiStarRings/RingsMultiStar"
                     *
                     softness;
 
-                // Signed distance from the true shadow edge: positive
-                // = inside the umbra core, negative = outside in full
-                // light. A single smooth ramp is centered on this zero
-                // point instead of the old sqrt(disc)-based falloff,
-                // which was smallest at the true edge and largest at
-                // the center, producing a dark-edge/bright-center/
-                // dark-again double flip.
                 float edgeDist =
                     shadowRadius - perpDist;
 
@@ -497,16 +484,6 @@ Shader "MultiStarRings/RingsMultiStar"
                             ndotl *
                             _AlbedoStrength;
 
-                        // Phase angle between the direction light travels
-                        // (star -> point, i.e. -lightDir) and the direction
-                        // toward the viewer. Using dot(lightDir, viewDir)
-                        // directly measured the wrong angle - it peaked
-                        // when the star and camera were on the same side
-                        // of the ring, and saturate() then threw away the
-                        // entire back-lit half of the range (negative
-                        // cosTheta) where forward scattering (the classic
-                        // sun-behind-the-rings glow with positive
-                        // _Anisotropy) actually happens.
                         float cosTheta =
                             clamp(
                                 dot(
