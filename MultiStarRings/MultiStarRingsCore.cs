@@ -58,12 +58,6 @@ namespace MultiStarRings
 		private static readonly Dictionary<int, Material> _originalMaterials =
 			new Dictionary<int, Material>();
 
-		// Caches the reflected FieldInfo/PropertyInfo used to pull the
-		// ring texture off a Kopernicus Ring instance, keyed by Type,
-		// so GetRingTexture() only pays the reflection lookup cost once
-		// per Ring type instead of once per ring per tick. A cached
-		// null means "this type has none of the known texture members" -
-		// still cached so we don't re-walk it every call either.
 		private static readonly Dictionary<Type, MemberInfo> _texMemberCache =
 			new Dictionary<Type, MemberInfo>();
 
@@ -71,10 +65,6 @@ namespace MultiStarRings
 
 		private static bool _cleanupHooked = false;
 
-		// Reused every UpdateRings() call instead of being allocated
-		// fresh per ring per tick. Safe because rings are processed
-		// sequentially on the main thread and each buffer is fully
-		// overwritten (or cleared) before use.
 		private static readonly List<(KopernicusStar star, double flux)> _contributorsBuffer =
 			new List<(KopernicusStar star, double flux)>();
 
@@ -103,10 +93,6 @@ namespace MultiStarRings
 		private static readonly float[] _shadowRadiiBuffer = new float[8];
 		private static readonly float[] _shadowIntensitiesBuffer = new float[8];
 
-		// Tracks which Ring instance IDs were actually seen this update,
-		// so stale _swappedMaterials/_originalMaterials entries left
-		// behind by a Ring that was destroyed/recreated mid-session
-		// (not on a scene load) can be pruned instead of leaking forever.
 		private static readonly HashSet<int> _liveRingInstanceIdsBuffer = new HashSet<int>();
 
 		private static void EnsureCleanupHooked()
@@ -123,12 +109,6 @@ namespace MultiStarRings
 		{
 			ClearMaterialCaches();
 
-			// These are also per-game-session state and must not
-			// survive a scene/save load, same as the material caches
-			// above. Previously only the material caches were reset
-			// here, which left stale flux calibration, shadow-caster
-			// CelestialBody references, and a stale merged config
-			// behind when switching saves or reloading.
 			_referenceFlux = null;
 			_shadowSystemInitialized = false;
 			NBodyShadowSystem.Reset();
@@ -149,13 +129,6 @@ namespace MultiStarRings
 			Debug.Log("[MultiStarRings] Cleared material caches on scene change");
 		}
 
-		// Loads a fresh copy of the asset bundle from disk and, only if
-		// that succeeds, swaps it in and rebuilds every ring's material
-		// against it. The old bundle/shader/materials are left completely
-		// untouched until the new one is confirmed good, so a failed
-		// reload (bad rebuild, file locked, etc.) leaves rings rendering
-		// exactly as they were instead of going magenta with no way back
-		// short of a restart.
 		public static bool ReloadShaderBundle()
 		{
 			if (!TryLoadShaderBundle(out AssetBundle newBundle, out Shader newShader))
@@ -172,16 +145,6 @@ namespace MultiStarRings
 			_multiStarShader = newShader;
 			_loadAttempted = true;
 
-			// Every swapped material still points at the old bundle's
-			// shader - destroy them so UpdateRings() rebuilds them all
-			// against newShader on its next tick, then only now release
-			// the old bundle. unloadAllLoadedObjects=false: the shader
-			// object itself was already replaced by newShader above and
-			// nothing references the old one anymore once the swapped
-			// materials above are gone, so there's nothing left worth
-			// keeping alive - but passing false here (rather than true)
-			// avoids Unity forcibly tearing down anything still mid-use
-			// this frame.
 			ClearMaterialCaches();
 
 			if (oldBundle != null)
@@ -261,11 +224,6 @@ namespace MultiStarRings
 			}
 		}
 
-		// Loads the asset bundle from disk and pulls the ring shader out
-		// of it, without touching _bundle/_multiStarShader - so a failed
-		// attempt (bad file, missing shader, etc.) never disturbs whatever
-		// is already loaded and currently in use. Caller decides what to
-		// do with the result.
 		private static bool TryLoadShaderBundle(
 			out AssetBundle bundle,
 			out Shader shader)
@@ -365,11 +323,6 @@ namespace MultiStarRings
 			"Texture"
 		};
 
-		// Resolves (once per Ring subtype, then cached forever) which
-		// reflected member actually holds the ring texture. Returns
-		// null - and caches that null - if the type has none of the
-		// known members, so a type that doesn't match is only walked
-		// once instead of on every call.
 		private static MemberInfo ResolveTextureMember(Type ringType)
 		{
 			if (_texMemberCache.TryGetValue(ringType, out MemberInfo cached))
@@ -410,14 +363,6 @@ namespace MultiStarRings
 
 			return found;
 		}
-
-		// Cheap per-tick lookup: no reflection walk, just GetValue()
-		// on the cached member (or a fast property read as fallback).
-		// Safe/intended to be called every UpdateRings() tick per ring,
-		// so a streamed/on-demand texture that gets swapped out from
-		// under us (leaving the material holding a destroyed-object
-		// reference) is picked up again instead of staying stuck on
-		// whatever texture happened to be bound the first tick.
 		private static Texture GetRingTexture(
 			Ring ring,
 			Material original)
@@ -523,13 +468,6 @@ namespace MultiStarRings
 					Vector3 refScaledPosition =
 						ScaledSpace.LocalToScaledSpace(
 							refPosition);
-
-					// Only match enabled entries here. Previously a
-					// disabled RingBrightness entry (enabled=false)
-					// was still found and its UseDefaultShader /
-					// compressionExponent / ceiling values were
-					// applied below - so "disabling" an override
-					// didn't actually disable it everywhere.
 					var brightnessConfig =
 						config != null &&
 						config.RingBrightness != null &&
@@ -645,12 +583,6 @@ namespace MultiStarRings
 							new Material(
 								_multiStarShader);
 
-						// originalMaterial may be null here (Kopernicus
-						// never built one for this ring) - GetRingTexture
-						// still works because it reads the texture off
-						// the Ring component itself via reflection first,
-						// only falling back to originalMaterial._MainTex
-						// as a second option.
 						Texture mainTex =
 							GetRingTexture(
 								ring,
@@ -720,19 +652,6 @@ namespace MultiStarRings
 					if (mat == null)
 						continue;
 
-					// Refreshed every tick (cheap - ResolveTextureMember
-					// is cached per Ring type, so this is just a GetValue()
-					// plus an equality check most frames). Some texture
-					// pipelines (on-demand/streamed 8K ring textures) can
-					// destroy and replace the Texture object Kopernicus
-					// handed us at first-build time. A destroyed Unity
-					// object reference doesn't compare equal to null in
-					// the normal sense, so a swapped material that only
-					// ever set _MainTex once could keep pointing at a
-					// dead texture indefinitely, rendering as flat/empty.
-					// Re-resolving and only calling SetTexture when the
-					// bound texture actually changed keeps this cheap
-					// while fixing that case.
 					Texture currentMainTex =
 						GetRingTexture(
 							ring,
@@ -751,14 +670,6 @@ namespace MultiStarRings
 								$"[MultiStarRings] Refreshed _MainTex for '{refBody.name}' (texture: {currentMainTex.name})");
 						}
 					}
-
-					// If a RingLights entry exists (and is enabled) for
-					// this ring body, only the star names it lists are
-					// allowed to illuminate it - no automatic pickup of
-					// whichever star happens to have the highest flux,
-					// which previously let stars from unrelated systems
-					// light rings they have no business touching. With
-					// no entry, fall back to the old automatic behavior.
 					var ringLightConfig =
 						config != null &&
 						config.RingLights != null &&
@@ -853,12 +764,6 @@ namespace MultiStarRings
 
 					active.Clear();
 
-					// Explicit RingLights entries still can't exceed
-					// MaxLights - the shader-side arrays are fixed at
-					// that size - but within that cap every allowed
-					// star is used rather than only the strongest four
-					// as in automatic mode. Flux still determines each
-					// star's contribution strength via fluxRatios below.
 					for (int c = 0;
 						 c < contributors.Count &&
 						 c < MaxLights;
@@ -880,11 +785,6 @@ namespace MultiStarRings
 					float[] starKeyframeOutTangents = _starKeyframeOutTangentsBuffer;
 					float[] starKeyframeCounts = _starKeyframeCountsBuffer;
 
-					// These buffers are reused across rings/ticks, so any
-					// slots not written below (e.g. active.Count < MaxLights,
-					// or a light with fewer keyframes than a previous
-					// occupant of the same slot) must be explicitly zeroed
-					// rather than left holding stale data from a prior ring.
 					Array.Clear(positions, 0, positions.Length);
 					Array.Clear(radii, 0, radii.Length);
 					Array.Clear(luminosities, 0, luminosities.Length);
@@ -1046,12 +946,6 @@ namespace MultiStarRings
 					mat.SetFloatArray(
 						SunRadiiId,
 						radii);
-
-					// sunWeights / sunLuminosities are declared in
-					// the shader's cbuffer but never read by it -
-					// uploading them was wasted work every update.
-					// luminosities[] is still computed above since
-					// the debug log below reads luminosities[0].
 
 					mat.SetFloatArray(
 						SunFluxRatiosId,
@@ -1222,10 +1116,6 @@ namespace MultiStarRings
 						ShadowQualityId,
 						qualityValue);
 
-					// Per-body illumination multiplier. Independent of
-					// compression - applies whenever a RingBrightness
-					// entry is enabled for this body, defaulting to 1.0 (no
-					// change) when there's no override.
 					float glowBoost =
 						brightnessConfig != null
 							? brightnessConfig.glowBoost
@@ -1259,12 +1149,6 @@ namespace MultiStarRings
 						BrightnessCeilingId,
 						ceiling);
 
-					// Scattering/anisotropy knobs default to the shader's
-					// own baked-in values (matching the Properties block)
-					// when no Global config is loaded, so behavior is
-					// unchanged unless the user actually sets these. A
-					// per-ring RingBrightness override (if present and
-					// not left at the "unset" sentinel) wins over Global.
 					float anisotropy =
 						brightnessConfig != null &&
 						brightnessConfig.anisotropy != float.MinValue
@@ -1405,13 +1289,6 @@ namespace MultiStarRings
 			}
 		}
 
-		// Removes _swappedMaterials/_originalMaterials entries for Ring
-		// instance IDs that weren't seen in this update's FindObjectsOfType
-		// scan - i.e. the Ring was destroyed (and possibly recreated with
-		// a new instance ID) mid-session, outside of a scene load. Without
-		// this, those entries (and the Material a swapped one points to)
-		// would sit in the dictionaries and never get cleaned up, since
-		// ClearMaterialCaches() only runs on scene load.
 		private static void PruneStaleMaterialCacheEntries()
 		{
 			List<int> staleIds = null;
