@@ -61,11 +61,6 @@ namespace MultiStarRings
         private static readonly Dictionary<string, List<NBodyShadowData>> _resolvedRingCastersCache =
             new Dictionary<string, List<NBodyShadowData>>();
 
-        // Clears all cached state so the next Initialize() rebuilds
-        // shadow casters and ring mappings from scratch, and re-reads
-        // config. Must be called on scene/save load - otherwise this
-        // static state (including stale CelestialBody references)
-        // leaks across game sessions.
         public static void Reset()
         {
             _config = null;
@@ -77,9 +72,6 @@ namespace MultiStarRings
             _lastUpdate = 0f;
         }
 
-        // Rebuilds the caches used by GetShadowCastersForRing from the
-        // current _shadowCasters/_ringShadowMappings. Called once after
-        // those are populated in Initialize(), not per-frame.
         private static void RebuildCasterCaches()
         {
             _allCastersCache.Clear();
@@ -239,9 +231,6 @@ namespace MultiStarRings
                 return resolved;
             }
 
-            // If no mapping, use all casters. Returns the shared cached
-            // list (rebuilt only when casters/mappings change) instead of
-            // allocating a new list on every call.
             return _allCastersCache;
         }
 
