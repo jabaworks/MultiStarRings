@@ -1,0 +1,20 @@
+## Build artifacts
+MultiStarRings/bin/
+MultiStarRings/obj/
+MultiStarRings/*.dll
+MultiStarRings/*.pdb
+
+## VS / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+## OS junk
+.DS_Store
+Thumbs.db
+
+## Packaging output
+/dist/
+*.zip
+*.tar.gz
