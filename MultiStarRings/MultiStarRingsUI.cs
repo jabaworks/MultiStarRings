@@ -321,11 +321,6 @@ namespace MultiStarRings
 					24));
 		}
 
-		// Lets you paste a folder path, pick a filename and stamp out a
-		// brand-new MultiStarRings cfg there with every section already
-		// present (Global/Debug filled with defaults, the four list
-		// sections left empty and ready for "+ Add New Entry"). No more
-		// hand-writing the skeleton before the editor will even show it.
 		private void DrawCreateConfigPanel()
 		{
 			GUILayout.BeginVertical(
@@ -424,9 +419,6 @@ namespace MultiStarRings
 					return;
 				}
 
-				// Global/Debug are mod-wide settings and stay exclusive
-				// to the real MultiStarRings.cfg - a config created here
-				// only ever gets the four list sections.
 				File.WriteAllText(
 					fullPath,
 					BuildConfigTemplate());
@@ -466,11 +458,6 @@ namespace MultiStarRings
 			}
 		}
 
-		// New files are patch-style additions, not the mod's main config -
-		// Global/Debug are mod-wide settings and stay exclusive to the
-		// real MultiStarRings.cfg (see isMainConfigFile in ApplyConfigDefaults).
-		// This template only carries the four list sections, empty and
-		// ready for "+ Add New Entry".
 		private string BuildConfigTemplate()
 		{
 			ConfigNode root =
@@ -770,10 +757,6 @@ namespace MultiStarRings
 			DrawNodeValues(section);
 		}
 
-		// Shows a button to add a brand-new, fully-defaulted entry to
-		// list-style sections (ShadowCasters/RingShadows/RingBrightness).
-		// Previously the editor could only edit entries that already
-		// existed in the cfg text - there was no way to create one.
 		private void DrawAddEntryButton(ConfigNode categoryNode)
 		{
 			(string key, string value)[] defaults =
@@ -936,11 +919,6 @@ namespace MultiStarRings
 			return style;
 		}
 
-		// Walks a freshly-parsed "MultiStarRings" node and adds any
-		// value the strongly-typed config classes define but this
-		// particular cfg's text doesn't - e.g. a RingBrightness entry
-		// written before UseDefaultShader existed. Existing values are
-		// never touched, only missing ones are filled in.
 		private void ApplyConfigDefaults(
 			ConfigNode parsedRoot,
 			bool isMainConfigFile)
@@ -971,19 +949,8 @@ namespace MultiStarRings
 					EnsureNode(msr, "Debug"),
 					DebugDefaults());
 
-				// The main MultiStarRings.cfg is Global/Debug only -
-				// ShadowCasters/RingShadows/RingBrightness/RingLights
-				// belong exclusively to patch-style files. Deliberately
-				// not touching those sections here even if present:
-				// no EnsureNode (never conjure them) and no backfill
-				// (never treat them as this file's concern).
 				return;
 			}
-
-			// Any other MultiStarRings-rooted file (compat patches, your
-			// own created configs) gets all four list sections guaranteed
-			// visible, even if this particular cfg's text never wrote
-			// them - that's the whole point of patch files.
 			FillListDefaults(
 				EnsureNode(msr, "ShadowCasters"),
 				ShadowCasterDefaults());
@@ -1001,11 +968,6 @@ namespace MultiStarRings
 				RingLightDefaults());
 		}
 
-		// Guarantees a top-level section node exists so it always shows
-		// up in the Section selector, even when this particular cfg's
-		// text never wrote that section at all (e.g. a file with only
-		// Global/Debug still gets empty-but-visible ShadowCasters,
-		// RingShadows, RingBrightness and RingLights sections).
 		private ConfigNode EnsureNode(
 			ConfigNode parent,
 			string name)
@@ -1186,10 +1148,6 @@ namespace MultiStarRings
 			ConfigBlock block =
 				file.Blocks[0];
 
-			// ConfigNode.Parse wraps the real "MultiStarRings" node in an
-			// unnamed root - unwrap here so every caller (section/item
-			// selectors, ApplyChanges) works with the actual node whose
-			// children are Global/Debug/ShadowCasters/etc.
 			return
 				block.Node.nodes != null &&
 				block.Node.nodes.Count > 0
@@ -1384,17 +1342,6 @@ namespace MultiStarRings
 					{
 						ConfigNode node =
 							ConfigNode.Parse(block);
-
-						// Backfill every field the strongly-typed config
-						// classes know about (MultiStarRingsConfig.cs) onto
-						// the parsed node, so the editor always shows every
-						// possible flag - not just the ones literally present
-						// in this particular cfg's text (e.g. UseDefaultShader
-						// on a RingBrightness entry that predates that field).
-						// Global/Debug are mod-wide settings that only belong
-						// in the main MultiStarRings.cfg - other files (e.g.
-						// a compatibility patch that only adds RingShadows
-						// entries) shouldn't get those sections forced in.
 						bool isMainConfigFile =
 							string.Equals(
 								Path.GetFileName(path),
@@ -1621,8 +1568,6 @@ namespace MultiStarRings
 		{
 			try
 			{
-				// CurrentRootNode() already returns the unwrapped
-				// "MultiStarRings" node - no further unwrap needed here.
 				ConfigNode editedNode =
 					CurrentRootNode();
 
