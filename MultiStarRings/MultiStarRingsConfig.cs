@@ -89,9 +89,6 @@ namespace MultiStarRings
 		public float glowBoost = 1.0f;
 		public bool enabled = true;
 		public bool UseDefaultShader = false;
-
-		// Per-ring scattering/anisotropy overrides. float.MinValue means
-		// "not set in this entry" - falls back to GlobalConfig's value.
 		public float anisotropy = float.MinValue;
 		public float scatteringPower = float.MinValue;
 		public float scatteringStrength = float.MinValue;
