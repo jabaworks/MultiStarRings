@@ -50,7 +50,6 @@ namespace MultiStarRings
         }
     }
     
-    // Also add a version for the Tracking Station and Space Center
     [KSPAddon(KSPAddon.Startup.TrackingStation, false)]
     public class MultiStarRingsUpdateTracking : MultiStarRingsUpdate
     {
