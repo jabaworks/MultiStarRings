@@ -3,6 +3,8 @@
 
 Replaces KSP's stock ring lighting with a shader built for Kopernicus systems that have more than one star. Instead of lighting a ring from one generic source, it works out which stars actually contribute the most light at that ring's body (or whichever ones you configure) and feeds the strongest ones into the shader, with proper attenuation, star colour, scattering, and occultation shadows.
 
+Performance wise it's actually quite cheap unless you set the refresh rate to really high. i'd recommend setting the refresh rate in the mod config file MultiStarRings.cfg to 100 given it doesn't lag for you. by default it's 10, so expect stuttering at high timewarp speeds.
+
 ## Requirements
 
 - Kopernicus
