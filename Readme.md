@@ -1,4 +1,5 @@
 # MultiStarRings
+**Open the config manager with  Ctrl+R**
 
 Replaces KSP's stock ring lighting with a shader built for Kopernicus systems that have more than one star. Instead of lighting a ring from one generic source, it works out which stars actually contribute the most light at that ring's body (or whichever ones you configure) and feeds the strongest ones into the shader, with proper attenuation, star colour, scattering, and occultation shadows.
 
