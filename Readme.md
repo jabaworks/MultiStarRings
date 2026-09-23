@@ -12,7 +12,7 @@ Performance wise it's actually quite cheap unless you set the refresh rate to re
 
 ## Install
 
-Drop the contents of the release zip into `GameData/`. That's it - it works with no config at all, using automatic shadow-caster detection.
+Drop the contents of the release zip into `GameData/`. That's it.
 
 ## Configuration
 
